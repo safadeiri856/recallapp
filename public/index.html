@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recall — حوّل أي نص لجلسة مذاكرة كاملة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg: #F6F4EE;
+    --card: #FFFFFF;
+    --ink: #22261F;
+    --ink-dim: #5E6155;
+    --ink-faint: #96988A;
+    --line: #E1DDCF;
+    --mustard: #B8862A;
+    --mustard-soft: #F1E3C4;
+    --teal: #2E6B63;
+    --teal-soft: #DCEBE7;
+    --rust: #A23E2E;
+    --rust-soft: #F3DDD6;
+    --serif: 'Newsreader', 'Noto Kufi Arabic', serif;
+    --sans: 'Inter', 'Noto Kufi Arabic', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:0 28px;}
+
+  nav{
+    border-bottom:1px solid var(--line);
+    background:rgba(246,244,238,0.9);
+    backdrop-filter:blur(8px);
+    position:sticky; top:0; z-index:10;
+  }
+  nav .wrap{height:66px; display:flex; align-items:center; justify-content:space-between;}
+  .logo{font-family:var(--serif); font-weight:600; font-size:21px; display:flex; align-items:center; gap:8px;}
+  .logo .mark{width:8px; height:8px; border-radius:50%; background:var(--mustard);}
+  .tagline{font-size:13.5px; color:var(--ink-faint);}
+
+  header.hero{padding:64px 0 36px; text-align:center;}
+  .eyebrow{font-size:13.5px; color:var(--mustard); font-weight:600; margin-bottom:16px;}
+  h1{
+    font-family:var(--serif); font-weight:600; font-size:clamp(30px,4.4vw,44px);
+    line-height:1.2; max-width:18ch; margin:0 auto;
+  }
+  .hero-sub{
+    margin:18px auto 0; max-width:52ch; color:var(--ink-dim); font-size:16px;
+  }
+
+  .input-card{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:26px; margin-top:38px;
+  }
+  .input-card label{
+    display:block; font-size:13.5px; font-weight:600; color:var(--ink-dim); margin-bottom:10px;
+  }
+  textarea{
+    width:100%; min-height:200px; resize:vertical;
+    border:1px solid var(--line); border-radius:4px; padding:16px;
+    font-family:var(--sans); font-size:15px; color:var(--ink);
+    background:#FCFBF8;
+  }
+  textarea:focus{outline:2px solid var(--mustard); outline-offset:1px;}
+  .input-meta{display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:12px;}
+  .char-count{font-size:12.5px; color:var(--ink-faint);}
+
+  .btn-primary{
+    background:var(--ink); color:#FBFAF6;
+    border:none; padding:13px 26px; border-radius:4px;
+    font-size:15px; font-weight:600; cursor:pointer;
+    font-family:var(--sans);
+    transition:background 0.15s ease;
+    display:inline-flex; align-items:center; gap:10px;
+  }
+  .btn-primary:hover:not(:disabled){background:var(--mustard);}
+  .btn-primary:disabled{opacity:0.55; cursor:not-allowed;}
+
+  .spinner{
+    width:15px; height:15px; border-radius:50%;
+    border:2px solid rgba(251,250,246,0.35); border-top-color:#FBFAF6;
+    animation:spin 0.7s linear infinite; display:none;
+  }
+  .btn-primary.loading .spinner{display:inline-block;}
+  .btn-primary.loading .btn-label{opacity:0.85;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .error-box{
+    margin-top:16px; padding:14px 16px; border-radius:4px;
+    background:var(--rust-soft); color:#6E2B1F; font-size:14px; display:none;
+  }
+
+  /* results */
+  #results{display:none; margin-top:52px;}
+  .tabs{
+    display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:32px;
+  }
+  .tab{
+    padding:12px 4px; margin-left:28px; font-size:15px; color:var(--ink-faint);
+    cursor:pointer; border-bottom:2px solid transparent; font-weight:500;
+    background:none; border-top:none; border-right:none; border-left:none;
+    font-family:var(--sans);
+  }
+  .tab.active{color:var(--ink); border-bottom-color:var(--mustard);}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* summary panel */
+  .summary-card{
+    background:var(--card); border:1px solid var(--line); border-radius:6px; padding:32px;
+  }
+  .summary-card h2{
+    font-family:var(--serif); font-weight:600; font-size:22px; margin-bottom:16px;
+  }
+  .summary-card p{color:var(--ink-dim); font-size:15.5px; line-height:1.75; margin-bottom:18px;}
+  .key-points{margin-top:22px; padding-top:22px; border-top:1px solid var(--line);}
+  .key-points h3{font-size:13.5px; font-weight:600; color:var(--ink-faint); margin-bottom:14px;}
+  .key-points ul{list-style:none;}
+  .key-points li{
+    display:flex; gap:12px; padding:10px 0; font-size:14.5px; color:var(--ink);
+    border-top:1px solid var(--line);
+  }
+  .key-points li:first-child{border-top:none;}
+  .key-points li .bullet{color:var(--mustard); font-weight:700; flex-shrink:0;}
+
+  /* flashcards panel */
+  .fc-wrap{display:flex; flex-direction:column; align-items:center;}
+  .fc-progress{font-size:13px; color:var(--ink-faint); margin-bottom:18px;}
+  .flashcard{
+    width:100%; max-width:560px; height:280px;
+    perspective:1400px; cursor:pointer;
+  }
+  .flashcard-inner{
+    position:relative; width:100%; height:100%;
+    transition:transform 0.5s cubic-bezier(.4,.2,.2,1);
+    transform-style:preserve-3d;
+  }
+  .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
+  .fc-face{
+    position:absolute; inset:0; backface-visibility:hidden;
+    border-radius:8px; border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    padding:36px; text-align:center;
+  }
+  .fc-front{background:var(--card);}
+  .fc-front .fc-text{font-family:var(--serif); font-size:22px; font-weight:500; line-height:1.4;}
+  .fc-back{
+    background:var(--mustard-soft); transform:rotateY(180deg);
+  }
+  .fc-back .fc-text{font-size:16.5px; color:var(--ink); line-height:1.65;}
+  .fc-hint{margin-top:14px; font-size:12.5px; color:var(--ink-faint);}
+  .fc-nav{display:flex; gap:14px; margin-top:22px; align-items:center;}
+  .fc-nav button{
+    background:none; border:1px solid var(--line); border-radius:4px;
+    padding:9px 18px; font-size:14px; color:var(--ink); cursor:pointer;
+    font-family:var(--sans);
+  }
+  .fc-nav button:hover{border-color:var(--ink-faint);}
+  .fc-nav button:disabled{opacity:0.4; cursor:not-allowed;}
+
+  /* quiz panel */
+  .quiz-progress{font-size:13px; color:var(--ink-faint); margin-bottom:16px;}
+  .quiz-card{
+    background:var(--card); border:1px solid var(--line); border-radius:6px; padding:30px;
+  }
+  .quiz-q{font-family:var(--serif); font-size:19px; font-weight:500; margin-bottom:22px; line-height:1.5;}
+  .quiz-options{display:flex; flex-direction:column; gap:10px;}
+  .quiz-opt{
+    text-align:right; padding:14px 16px; border:1px solid var(--line); border-radius:4px;
+    background:#FCFBF8; cursor:pointer; font-size:14.5px; font-family:var(--sans); color:var(--ink);
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .quiz-opt:hover{border-color:var(--mustard);}
+  .quiz-opt.correct{background:var(--teal-soft); border-color:var(--teal); color:#1D4A44;}
+  .quiz-opt.incorrect{background:var(--rust-soft); border-color:var(--rust); color:#6E2B1F;}
+  .quiz-opt:disabled{cursor:default;}
+  .quiz-explain{
+    margin-top:16px; padding:14px 16px; border-radius:4px; background:var(--bg);
+    font-size:14px; color:var(--ink-dim); display:none;
+  }
+  .quiz-footer{display:flex; justify-content:space-between; align-items:center; margin-top:22px;}
+  .quiz-next{
+    background:var(--ink); color:#FBFAF6; border:none; padding:10px 20px;
+    border-radius:4px; font-size:14px; cursor:pointer; display:none; font-family:var(--sans);
+  }
+  .quiz-score{
+    text-align:center; padding:50px 20px;
+  }
+  .quiz-score .big{font-family:var(--serif); font-size:52px; font-weight:600; color:var(--mustard);}
+  .quiz-score p{color:var(--ink-dim); margin-top:10px; font-size:15px;}
+  .retry-btn{
+    margin-top:22px; background:none; border:1px solid var(--line); border-radius:4px;
+    padding:10px 20px; cursor:pointer; font-size:14px; font-family:var(--sans);
+  }
+
+  footer{padding:50px 0 30px; text-align:center;}
+  footer p{font-size:12.5px; color:var(--ink-faint);}
+
+  /* upload row */
+  .upload-row{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .upload-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    border:1px dashed var(--line); border-radius:4px;
+    padding:9px 16px; font-size:13.5px; color:var(--ink-dim);
+    cursor:pointer; background:#FCFBF8; font-family:var(--sans);
+  }
+  .upload-btn:hover{border-color:var(--mustard); color:var(--ink);}
+  .upload-status{font-size:12.5px; color:var(--ink-faint);}
+
+  /* sessions history */
+  .sessions-section{margin-top:44px;}
+  .sessions-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .sessions-head h3{font-family:var(--serif); font-size:18px; font-weight:600;}
+  .sessions-empty{font-size:13.5px; color:var(--ink-faint); padding:18px 0;}
+  .session-list{display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .session-item{
+    background:var(--card); padding:16px 20px; display:flex; justify-content:space-between;
+    align-items:center; cursor:pointer; gap:16px;
+  }
+  .session-item:hover{background:#FCFAF3;}
+  .session-item .si-title{font-size:14.5px; font-weight:500; color:var(--ink);}
+  .session-item .si-date{font-size:12px; color:var(--ink-faint); margin-top:3px;}
+  .session-item .si-open{font-size:13px; color:var(--mustard); font-weight:600; flex-shrink:0;}
+  .session-item .si-del{
+    font-size:12px; color:var(--ink-faint); background:none; border:none; cursor:pointer;
+    padding:4px 8px; flex-shrink:0;
+  }
+  .session-item .si-del:hover{color:var(--rust);}
+
+  @media (prefers-reduced-motion: reduce){*{transition:none !important; animation:none !important;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo"><span class="mark"></span>Recall</div>
+    <div class="tagline">حوّل نصك لجلسة مذاكرة كاملة</div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">أداة مذاكرة ذكية</div>
+    <h1>الصق أي نص، وطلّع منه ملخص وبطاقات وكويز خلال ثواني</h1>
+    <p class="hero-sub">مادة محاضرة، فصل من كتاب، أو ملخص طويل — الأداة بتحلله فعلياً بالذكاء الاصطناعي وبتبنيلك أدوات مراجعة جاهزة، مش مجرد نسخ ولصق.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="input-card">
+    <label for="sourceText">النص يلي بدك تذاكره</label>
+    <div class="upload-row">
+      <label class="upload-btn" for="pdfInput">📄 ارفع ملف PDF بدل اللصق</label>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none" onchange="handlePdfUpload(event)">
+      <span class="upload-status" id="uploadStatus"></span>
+    </div>
+    <textarea id="sourceText" placeholder="الصق هون محاضرة، فصل من كتاب، أو أي نص تعليمي... أو ارفع PDF من فوق"></textarea>
+    <div class="input-meta">
+      <span class="char-count" id="charCount">0 حرف</span>
+      <button class="btn-primary" id="buildBtn" onclick="buildStudyKit()">
+        <span class="spinner"></span>
+        <span class="btn-label">ابني جلسة المذاكرة</span>
+      </button>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="sessions-section">
+    <div class="sessions-head">
+      <h3>جلساتي السابقة</h3>
+    </div>
+    <div id="sessionsList"><div class="sessions-empty">ما في جلسات محفوظة بعد — أول جلسة تبنيها رح تنحفظ هون تلقائياً.</div></div>
+  </div>
+
+  <div id="results">
+    <div class="tabs">
+      <button class="tab active" data-tab="summary" onclick="switchTab('summary')">الملخص</button>
+      <button class="tab" data-tab="flashcards" onclick="switchTab('flashcards')">بطاقات المراجعة</button>
+      <button class="tab" data-tab="quiz" onclick="switchTab('quiz')">الكويز</button>
+    </div>
+
+    <div class="panel active" id="panel-summary">
+      <div class="summary-card">
+        <h2 id="summaryTitle"></h2>
+        <p id="summaryText"></p>
+        <div class="key-points">
+          <h3>أهم النقاط</h3>
+          <ul id="keyPointsList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-flashcards">
+      <div class="fc-wrap">
+        <div class="fc-progress" id="fcProgress"></div>
+        <div class="flashcard" id="flashcard" onclick="flipCard()">
+          <div class="flashcard-inner" id="flashcardInner">
+            <div class="fc-face fc-front"><div class="fc-text" id="fcFront"></div></div>
+            <div class="fc-face fc-back"><div class="fc-text" id="fcBack"></div></div>
+          </div>
+        </div>
+        <div class="fc-hint">اضغط على البطاقة لقلبها</div>
+        <div class="fc-nav">
+          <button id="fcPrev" onclick="fcNav(-1)">السابق</button>
+          <button id="fcNext" onclick="fcNav(1)">التالي</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-quiz">
+      <div id="quizArea"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Recall — أداة توضيحية، التحليل يتم فعلياً عبر نموذج ذكاء اصطناعي حي.</p>
+</footer>
+
+<script>
+let studyData = null;
+let fcIndex = 0;
+let quizIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+let currentSessionId = null;
+
+const textarea = document.getElementById('sourceText');
+const charCount = document.getElementById('charCount');
+textarea.addEventListener('input', () => {
+  charCount.textContent = textarea.value.length + ' حرف';
+});
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+async function handlePdfUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.textContent = 'عم يقرأ الملف...';
+
+  try{
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    let fullText = '';
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(it => it.str).join(' ');
+      fullText += pageText + '\n\n';
+      status.textContent = `عم يقرأ الصفحة ${i} من ${pdf.numPages}...`;
+    }
+    textarea.value = fullText.trim();
+    charCount.textContent = textarea.value.length + ' حرف';
+    status.textContent = `✓ انقرأ الملف (${pdf.numPages} صفحة)`;
+  }catch(err){
+    console.error(err);
+    status.textContent = 'ما قدرنا نقرأ هاد الملف — جرب تلصق النص يدوياً.';
+  }
+}
+
+/* ---------- sessions storage ---------- */
+
+async function loadSessionsList(){
+  const listEl = document.getElementById('sessionsList');
+  try{
+    const raw = localStorage.getItem('recall-sessions-index');
+    const index = raw ? JSON.parse(raw) : [];
+    if(index.length === 0){
+      listEl.innerHTML = '<div class="sessions-empty">ما في جلسات محفوظة بعد — أول جلسة تبنيها رح تنحفظ هون تلقائياً.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'session-list';
+    index.forEach(meta => {
+      const item = document.createElement('div');
+      item.className = 'session-item';
+      item.innerHTML = `
+        <div onclick="openSession('${meta.id}')" style="flex:1; cursor:pointer;">
+          <div class="si-title">${escapeHtml(meta.title)}</div>
+          <div class="si-date">${meta.date}</div>
+        </div>
+        <span class="si-open" onclick="openSession('${meta.id}')">فتح ←</span>
+        <button class="si-del" onclick="deleteSession('${meta.id}', event)">حذف</button>`;
+      wrap.appendChild(item);
+    });
+    listEl.appendChild(wrap);
+  }catch(err){
+    console.error(err);
+    listEl.innerHTML = '<div class="sessions-empty">ما قدرنا نحمّل الجلسات السابقة.</div>';
+  }
+}
+
+function saveSession(){
+  try{
+    const id = String(Date.now());
+    const date = new Date().toLocaleDateString('ar-EG', { year:'numeric', month:'long', day:'numeric' });
+    const meta = { id, title: studyData.title || 'جلسة مذاكرة', date };
+
+    localStorage.setItem('recall-session:' + id, JSON.stringify(studyData));
+
+    const raw = localStorage.getItem('recall-sessions-index');
+    let index = raw ? JSON.parse(raw) : [];
+    index.unshift(meta);
+    if(index.length > 25){
+      index.slice(25).forEach(m => localStorage.removeItem('recall-session:' + m.id));
+      index = index.slice(0, 25);
+    }
+    localStorage.setItem('recall-sessions-index', JSON.stringify(index));
+
+    currentSessionId = id;
+    loadSessionsList();
+  }catch(err){
+    console.error('could not save session', err);
+  }
+}
+
+function openSession(id){
+  try{
+    const raw = localStorage.getItem('recall-session:' + id);
+    if(!raw) return;
+    studyData = JSON.parse(raw);
+    currentSessionId = id;
+    renderResults();
+  }catch(err){
+    console.error(err);
+  }
+}
+
+function deleteSession(id, evt){
+  evt.stopPropagation();
+  try{
+    localStorage.removeItem('recall-session:' + id);
+    const raw = localStorage.getItem('recall-sessions-index');
+    let index = raw ? JSON.parse(raw) : [];
+    index = index.filter(m => m.id !== id);
+    localStorage.setItem('recall-sessions-index', JSON.stringify(index));
+    loadSessionsList();
+  }catch(err){
+    console.error(err);
+  }
+}
+
+loadSessionsList();
+
+async function buildStudyKit(){
+  const text = textarea.value.trim();
+  const errorBox = document.getElementById('errorBox');
+  errorBox.style.display = 'none';
+
+  if(text.length < 40){
+    errorBox.textContent = 'الصق نص أطول شوي (على الأقل كم جملة) عشان الأداة تقدر تبني منه محتوى مفيد.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const trimmedText = text.length > 6000 ? text.slice(0, 6000) : text;
+
+  const btn = document.getElementById('buildBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try{
+    // النداء هلق رايح لسيرفرنا احنا (server.js) مش لـ Anthropic مباشرة،
+    // عشان مفتاح الـ API يضل مخبى بالسيرفر ومش بالمتصفح.
+    const response = await fetch("/api/study-kit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: trimmedText })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data?.error || `طلب فشل برمز ${response.status}`);
+    }
+
+    const rawText = data.raw || "";
+    let cleaned = rawText.replace(/```json|```/g, "").trim();
+
+    // fallback: extract the outermost JSON object if there's stray text around it
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if(firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace){
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    studyData = JSON.parse(cleaned);
+
+    renderResults();
+    saveSession();
+  }catch(err){
+    console.error(err);
+    errorBox.textContent = 'صار خطأ أثناء التحليل: ' + (err.message || 'خطأ غير معروف') + ' — جرب مرة ثانية أو قصّر النص شوي.';
+    errorBox.style.display = 'block';
+  }finally{
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+function renderResults(){
+  document.getElementById('results').style.display = 'block';
+
+  // summary
+  document.getElementById('summaryTitle').textContent = studyData.title || '';
+  document.getElementById('summaryText').textContent = studyData.summary || '';
+  const kpList = document.getElementById('keyPointsList');
+  kpList.innerHTML = '';
+  (studyData.keyPoints || []).forEach(pt => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="bullet">—</span><span>${escapeHtml(pt)}</span>`;
+    kpList.appendChild(li);
+  });
+
+  // flashcards
+  fcIndex = 0;
+  renderFlashcard();
+
+  // quiz
+  quizIndex = 0; quizScore = 0; quizAnswered = false;
+  renderQuiz();
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function renderFlashcard(){
+  const cards = studyData.flashcards || [];
+  if(cards.length === 0) return;
+  const card = cards[fcIndex];
+  document.getElementById('fcFront').textContent = card.front;
+  document.getElementById('fcBack').textContent = card.back;
+  document.getElementById('flashcard').classList.remove('flipped');
+  document.getElementById('fcProgress').textContent = `بطاقة ${fcIndex + 1} من ${cards.length}`;
+  document.getElementById('fcPrev').disabled = fcIndex === 0;
+  document.getElementById('fcNext').disabled = fcIndex === cards.length - 1;
+}
+
+function flipCard(){
+  document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+function fcNav(dir){
+  fcIndex += dir;
+  renderFlashcard();
+}
+
+function renderQuiz(){
+  const questions = studyData.quiz || [];
+  const area = document.getElementById('quizArea');
+
+  if(quizIndex >= questions.length){
+    area.innerHTML = `
+      <div class="quiz-score">
+        <div class="big">${quizScore} / ${questions.length}</div>
+        <p>إجابات صحيحة</p>
+        <button class="retry-btn" onclick="quizIndex=0; quizScore=0; renderQuiz();">أعد الكويز</button>
+      </div>`;
+    return;
+  }
+
+  const q = questions[quizIndex];
+  area.innerHTML = `
+    <div class="quiz-progress">سؤال ${quizIndex + 1} من ${questions.length}</div>
+    <div class="quiz-card">
+      <div class="quiz-q">${escapeHtml(q.question)}</div>
+      <div class="quiz-options" id="quizOptions"></div>
+      <div class="quiz-explain" id="quizExplain">${escapeHtml(q.explanation || '')}</div>
+      <div class="quiz-footer">
+        <span></span>
+        <button class="quiz-next" id="quizNextBtn" onclick="quizIndex++; renderQuiz();">السؤال التالي</button>
+      </div>
+    </div>`;
+
+  quizAnswered = false;
+  const optWrap = document.getElementById('quizOptions');
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-opt';
+    btn.textContent = opt;
+    btn.onclick = () => answerQuiz(i, q.correctIndex);
+    optWrap.appendChild(btn);
+  });
+}
+
+function answerQuiz(selected, correctIndex){
+  if(quizAnswered) return;
+  quizAnswered = true;
+  const opts = document.querySelectorAll('.quiz-opt');
+  opts.forEach((btn, i) => {
+    btn.disabled = true;
+    if(i === correctIndex) btn.classList.add('correct');
+    else if(i === selected) btn.classList.add('incorrect');
+  });
+  if(selected === correctIndex) quizScore++;
+  document.getElementById('quizExplain').style.display = 'block';
+  document.getElementById('quizNextBtn').style.display = 'inline-block';
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
